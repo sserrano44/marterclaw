@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# claws.sh — manage multiple openclaw instances
+# masterclaw — Wake me when you need me.
 set -euo pipefail
 
 CLAWS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTANCES_DIR="$CLAWS_DIR/.instances"
-OPENCLAW_DIR="/home/sserrano44/openclaw"
+CLAWS_CONFIGS_DIR="$CLAWS_DIR/claws"
+OPENCLAW_DIR="$CLAWS_DIR/openclaw"
 COMPOSE_FILE="$OPENCLAW_DIR/docker-compose.yml"
 
 # Default port range start (each claw uses 2 ports: gateway + bridge)
@@ -12,12 +13,15 @@ DEFAULT_PORT_START=18789
 
 usage() {
   cat <<EOF
-Usage: claws <command> [name] [options]
+Usage: masterclaw <command> [name] [options]
 
 Commands:
+  init                        Clone openclaw repo and build the Docker image
   list                        List all registered claws and their status
   add <name> [options]        Register a new claw instance
   create <name> [options]     Register + run docker setup in one step (add + setup)
+  import <name> <backup.tar.gz> [options]
+                              Restore a claw from an openclaw backup archive
   setup <name>                Run openclaw docker setup (interactive onboarding)
   start <name>                Start a claw
   stop <name>                 Stop a claw
@@ -25,25 +29,29 @@ Commands:
   status <name>               Show status and info for a claw
   logs <name> [args...]       Follow gateway logs (extra args passed to docker compose logs)
   exec <name> [cmd...]        Run openclaw CLI command inside the claw
+  shell <name>                Open an interactive bash shell in the gateway container
+  update <name>               Rebuild/pull the openclaw image and restart the claw
   remove <name>               Stop and unregister a claw (config/workspace preserved)
   token <name>                Print the gateway token for a claw
   url <name>                  Print the dashboard URL for a claw
 
-Options for 'add':
-  --config <dir>     Config directory (default: $CLAWS_DIR/<name>)
-  --workspace <dir>  Workspace directory (default: $CLAWS_DIR/<name>/workspace)
+Options for 'add' / 'import':
+  --config <dir>     Config directory (default: $CLAWS_CONFIGS_DIR/<name>)
+  --workspace <dir>  Workspace directory (default: $CLAWS_CONFIGS_DIR/<name>/workspace)
   --port <port>      Gateway port (bridge port = gateway port + 1)
                      Default: next available port starting from $DEFAULT_PORT_START
 
 Examples:
-  claws create elbo
-  claws create mybot --port 18800
-  claws create mybot --config /path/to/config --workspace /path/to/workspace
-  claws add elbo --port 18789
-  claws start elbo
-  claws list
-  claws logs elbo
-  claws exec elbo channels login
+  masterclaw create elbo
+  masterclaw create mybot --port 18800
+  masterclaw create mybot --config /path/to/config --workspace /path/to/workspace
+  masterclaw import godin godin-openclaw-backup.tar.gz
+  masterclaw import godin godin-openclaw-backup.tar.gz --port 18800
+  masterclaw add elbo --port 18789
+  masterclaw start elbo
+  masterclaw list
+  masterclaw logs elbo
+  masterclaw exec elbo channels login
 EOF
 }
 
@@ -60,7 +68,7 @@ load_instance() {
   local name="$1"
   local env_file
   env_file="$(instance_env "$name")"
-  [[ -f "$env_file" ]] || fail "claw '$name' not found. Run: claws add $name"
+  [[ -f "$env_file" ]] || fail "claw '$name' not found. Run: masterclaw add $name"
   # shellcheck source=/dev/null
   source "$env_file"
 }
@@ -93,7 +101,7 @@ next_available_port() {
 
 cmd_list() {
   if [[ ! -d "$INSTANCES_DIR" ]] || [[ -z "$(ls -A "$INSTANCES_DIR" 2>/dev/null)" ]]; then
-    echo "No claws registered. Use: claws add <name>"
+    echo "No claws registered. Use: masterclaw add <name>"
     return
   fi
 
@@ -124,8 +132,8 @@ cmd_add() {
   local name="$1"; shift
   require_name "$name"
 
-  local config_dir="$CLAWS_DIR/$name"
-  local workspace_dir="$CLAWS_DIR/$name/workspace"
+  local config_dir="$CLAWS_CONFIGS_DIR/$name"
+  local workspace_dir="$CLAWS_CONFIGS_DIR/$name/workspace"
   local port=""
 
   while [[ $# -gt 0 ]]; do
@@ -140,7 +148,7 @@ cmd_add() {
   local inst_dir
   inst_dir="$(instance_dir "$name")"
   if [[ -d "$inst_dir" ]]; then
-    fail "claw '$name' already registered. Use 'claws remove $name' first to re-add."
+    fail "claw '$name' already registered. Use 'masterclaw remove $name' first to re-add."
   fi
 
   if [[ -z "$port" ]]; then
@@ -198,8 +206,8 @@ ENV
   echo "  Gateway:   http://localhost:$port  (token: $token)"
   echo ""
   echo "Next steps:"
-  echo "  claws setup $name    # interactive onboarding (first time)"
-  echo "  claws start $name    # start the gateway"
+  echo "  masterclaw setup $name    # interactive onboarding (first time)"
+  echo "  masterclaw start $name    # start the gateway"
 }
 
 cmd_create() {
@@ -337,6 +345,64 @@ cmd_exec() {
       run --rm openclaw-cli "$@"
 }
 
+cmd_shell() {
+  local name="$1"
+  require_name "$name"
+  load_instance "$name"
+
+  env OPENCLAW_CONFIG_DIR="$OPENCLAW_CONFIG_DIR" \
+      OPENCLAW_WORKSPACE_DIR="$OPENCLAW_WORKSPACE_DIR" \
+      OPENCLAW_GATEWAY_PORT="$OPENCLAW_GATEWAY_PORT" \
+      OPENCLAW_BRIDGE_PORT="$OPENCLAW_BRIDGE_PORT" \
+      OPENCLAW_GATEWAY_TOKEN="$OPENCLAW_GATEWAY_TOKEN" \
+      OPENCLAW_IMAGE="$OPENCLAW_IMAGE" \
+    docker compose -f "$COMPOSE_FILE" --project-name "claw-$name" \
+      exec openclaw-gateway bash
+}
+
+cmd_init() {
+  if [[ -d "$OPENCLAW_DIR" ]]; then
+    echo "openclaw already present at $OPENCLAW_DIR"
+  else
+    echo "Cloning openclaw into $OPENCLAW_DIR..."
+    git clone git@github.com:openclaw/openclaw.git "$OPENCLAW_DIR"
+  fi
+
+  echo "Building Docker image (openclaw:local)..."
+  DOCKER_BUILDKIT=1 docker build -t openclaw:local "$OPENCLAW_DIR"
+
+  echo ""
+  echo "Done. openclaw is ready. Next:"
+  echo "  masterclaw create <name>    # create your first claw"
+}
+
+cmd_update() {
+  local name="$1"
+  require_name "$name"
+  load_instance "$name"
+
+  echo "Updating openclaw for claw '$name'..."
+
+  if [[ "$OPENCLAW_IMAGE" == "openclaw:local" ]]; then
+    # Local image: pull latest source then rebuild
+    echo "==> Pulling latest openclaw source..."
+    git -C "$OPENCLAW_DIR" pull
+
+    echo "==> Rebuilding image..."
+    docker compose -f "$COMPOSE_FILE" --project-name "claw-$name" build openclaw-gateway
+  else
+    # Pre-built image (e.g. ghcr.io/openclaw/openclaw:latest): just pull
+    echo "==> Pulling updated image: $OPENCLAW_IMAGE"
+    docker pull "$OPENCLAW_IMAGE"
+  fi
+
+  echo "==> Restarting claw '$name'..."
+  cmd_stop "$name"
+  cmd_start "$name"
+
+  echo "Done."
+}
+
 cmd_remove() {
   local name="$1"
   require_name "$name"
@@ -367,6 +433,54 @@ cmd_url() {
   echo "http://localhost:$OPENCLAW_GATEWAY_PORT"
 }
 
+cmd_import() {
+  local name="$1"; shift
+  require_name "$name"
+
+  local backup_file=""
+  local port=""
+  local config_dir="$CLAWS_CONFIGS_DIR/$name"
+  local workspace_dir="$CLAWS_CONFIGS_DIR/$name/workspace"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --port)      port="$2"; shift 2 ;;
+      --config)    config_dir="$2"; shift 2 ;;
+      --workspace) workspace_dir="$2"; shift 2 ;;
+      -*)          fail "Unknown option: $1" ;;
+      *)           backup_file="$1"; shift ;;
+    esac
+  done
+
+  [[ -n "$backup_file" ]] || fail "backup file required. Usage: masterclaw import <name> <backup.tar.gz>"
+  [[ -f "$backup_file" ]] || fail "backup file not found: $backup_file"
+
+  # Locate openclaw.json inside the archive to determine the strip depth
+  local openclaw_json_path
+  openclaw_json_path="$(tar -tzf "$backup_file" | grep -m1 'openclaw\.json$' || true)"
+  [[ -n "$openclaw_json_path" ]] || fail "No openclaw.json found in backup — is this a valid openclaw backup?"
+
+  # Strip count = number of path components in the directory containing openclaw.json
+  # e.g. "<ts>-openclaw-backup/payload/posix/home/sebas/.openclaw/openclaw.json" → dirname has 6 parts
+  local strip_count
+  strip_count="$(dirname "$openclaw_json_path" | tr '/' '\n' | grep -c .)"
+
+  echo "==> Extracting backup into $config_dir..."
+  mkdir -p "$config_dir"
+  tar -xzf "$backup_file" --strip-components="$strip_count" -C "$config_dir"
+  echo "    Done."
+
+  # Register the instance; cmd_add will read the token from the extracted openclaw.json
+  local add_args=(--config "$config_dir" --workspace "$workspace_dir")
+  [[ -n "$port" ]] && add_args+=(--port "$port")
+  echo ""
+  cmd_add "$name" "${add_args[@]}"
+
+  echo ""
+  echo "Import complete. Start with:"
+  echo "  masterclaw start $name"
+}
+
 # ---- main ----
 mkdir -p "$INSTANCES_DIR"
 
@@ -375,9 +489,11 @@ mkdir -p "$INSTANCES_DIR"
 COMMAND="$1"; shift
 
 case "$COMMAND" in
+  init)    cmd_init ;;
   list)    cmd_list ;;
   create)  cmd_create "${1:-}" "${@:2}" ;;
   add)     cmd_add "${1:-}" "${@:2}" ;;
+  import)  cmd_import "${1:-}" "${@:2}" ;;
   setup)   cmd_setup "${1:-}" ;;
   start)   cmd_start "${1:-}" ;;
   stop)    cmd_stop "${1:-}" ;;
@@ -385,6 +501,8 @@ case "$COMMAND" in
   status)  cmd_status "${1:-}" ;;
   logs)    cmd_logs "${1:-}" "${@:2}" ;;
   exec)    cmd_exec "${1:-}" "${@:2}" ;;
+  shell)   cmd_shell "${1:-}" ;;
+  update)  cmd_update "${1:-}" ;;
   remove)  cmd_remove "${1:-}" ;;
   token)   cmd_token "${1:-}" ;;
   url)     cmd_url "${1:-}" ;;

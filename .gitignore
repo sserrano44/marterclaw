@@ -1,0 +1,22 @@
+# Instance registry — contains tokens and absolute paths
+.instances/
+
+# Per-instance openclaw config dirs (tokens, identity, credentials, workspace)
+claws/
+
+# Backup archives
+*.tar.gz
+*.tar.bz2
+*.zip
+
+# Local openclaw source clone
+openclaw/
+
+# Local tool state
+.gstack/
+.claude/
+
+# Editor/OS noise
+.DS_Store
+*.swp
+*.swo
