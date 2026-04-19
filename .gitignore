@@ -16,6 +16,10 @@ openclaw/
 .gstack/
 .claude/
 
+# Node / build output
+node_modules/
+dist/
+
 # Editor/OS noise
 .DS_Store
 *.swp

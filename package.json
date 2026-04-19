@@ -1,0 +1,33 @@
+{
+  "name": "masterclaw",
+  "version": "0.1.0",
+  "description": "Manage multiple openclaw agent instances side-by-side.",
+  "type": "module",
+  "bin": {
+    "masterclaw": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "install-cli.sh",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "postbuild": "chmod +x dist/cli.js",
+    "dev": "tsx src/cli.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "execa": "^9.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
