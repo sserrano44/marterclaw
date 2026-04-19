@@ -85,27 +85,6 @@ Power users can override the roots with:
 
 Per-claw `--config` and `--workspace` flags still override the defaults on `add`, `create`, and `import`.
 
-## Migrating an Existing Repo-Local Setup
-
-If you already have a working `masterclaw.sh` checkout with `.instances/`, `claws/`, and `openclaw/` living inside the repo, use [migrate.sh](/Users/sebas/projects/marterclaw/migrate.sh) from that checkout before switching fully to the npm CLI.
-
-```bash
-# Safe default: copy into the new layout and keep the old repo-local files
-./migrate.sh
-
-# After verifying the new layout works, move instead of copy
-./migrate.sh --move
-
-# If you want old openclaw:local claws switched to the released image during migration
-./migrate.sh --use-released-image
-```
-
-The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OPENCLAW_WORKSPACE_DIR` point at the new home-directory locations, and it normalizes a migrated `openclaw` checkout to an HTTPS Git remote so normal updates do not require SSH auth.
-
-By default it preserves each claw's existing `OPENCLAW_IMAGE` value. If you pass `--use-released-image`, any migrated `OPENCLAW_IMAGE=openclaw:local` entries are rewritten to `ghcr.io/openclaw/openclaw:latest`.
-
-If no old `.instances/` registry exists, the script also falls back to discovering legacy claw config directories directly under the repo root or under `./claws/`. In that mode it reconstructs instance env files, reuses tokens from `openclaw.json` when possible, and infers ports from existing Docker containers or assigns the next available defaults.
-
 ## Commands
 
 | Command | Description |
