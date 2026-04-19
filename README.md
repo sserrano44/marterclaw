@@ -95,9 +95,14 @@ If you already have a working `masterclaw.sh` checkout with `.instances/`, `claw
 
 # After verifying the new layout works, move instead of copy
 ./migrate.sh --move
+
+# If you want old openclaw:local claws switched to the released image during migration
+./migrate.sh --use-released-image
 ```
 
-The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OPENCLAW_WORKSPACE_DIR` point at the new home-directory locations, but it only rewrites paths that were inside the old repo-local `claws/` tree.
+The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OPENCLAW_WORKSPACE_DIR` point at the new home-directory locations, and it normalizes a migrated `openclaw` checkout to an HTTPS Git remote so normal updates do not require SSH auth.
+
+By default it preserves each claw's existing `OPENCLAW_IMAGE` value. If you pass `--use-released-image`, any migrated `OPENCLAW_IMAGE=openclaw:local` entries are rewritten to `ghcr.io/openclaw/openclaw:latest`.
 
 ## Commands
 
@@ -116,7 +121,7 @@ The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OP
 | `logs <name> [args...]` | Follow gateway logs |
 | `exec <name> [cmd...]` | Run an openclaw CLI command inside the claw |
 | `shell <name>` | Open an interactive bash shell in the gateway container |
-| `update <name>` | Rebuild or pull the openclaw image and restart the claw |
+| `update <name>` | Refresh support files, rebuild or pull the image, and restart the claw |
 | `remove <name>` | Stop and unregister a claw (config/workspace preserved) |
 | `token <name>` | Print the gateway token |
 | `url <name>` | Print the dashboard URL |
