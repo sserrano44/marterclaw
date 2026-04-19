@@ -104,6 +104,8 @@ The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OP
 
 By default it preserves each claw's existing `OPENCLAW_IMAGE` value. If you pass `--use-released-image`, any migrated `OPENCLAW_IMAGE=openclaw:local` entries are rewritten to `ghcr.io/openclaw/openclaw:latest`.
 
+If no old `.instances/` registry exists, the script also falls back to discovering legacy claw config directories directly under the repo root or under `./claws/`. In that mode it reconstructs instance env files, reuses tokens from `openclaw.json` when possible, and infers ports from existing Docker containers or assigns the next available defaults.
+
 ## Commands
 
 | Command | Description |
