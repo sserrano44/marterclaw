@@ -56,7 +56,7 @@ OpenClaw's official docs troubleshoot global CLI installs the same way: they tel
 ## Quickstart
 
 ```bash
-# 1. Clone openclaw into ~/.masterclaw/openclaw and build openclaw:local
+# 1. Fetch OpenClaw support files and pull the released runtime image
 masterclaw init
 
 # 2. Create your first claw and run openclaw's interactive setup
@@ -103,7 +103,7 @@ The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OP
 
 | Command | Description |
 | --- | --- |
-| `init` | Clone openclaw repo and build the Docker image |
+| `init` | Fetch OpenClaw support files and prepare the default runtime image |
 | `list` | List all registered claws and their status |
 | `add <name>` | Register a new claw instance |
 | `create <name>` | Register + run docker setup in one step |
@@ -128,6 +128,24 @@ The script rewrites migrated instance env files so `OPENCLAW_CONFIG_DIR` and `OP
 --workspace <dir>  Workspace directory (default: ~/claws/<name>/workspace)
 --port <port>      Gateway port (bridge port = gateway port + 1)
                    Default: next available port starting from 18789
+--image <image>    OpenClaw image (default: ghcr.io/openclaw/openclaw:latest)
+```
+
+## Runtime Defaults
+
+By default, new claws use the released container image:
+
+```text
+ghcr.io/openclaw/openclaw:latest
+```
+
+That matches OpenClaw's recommended install posture more closely: normal users consume released artifacts, while source builds remain an opt-in contributor path.
+
+For contributors who want a local source image instead:
+
+```bash
+masterclaw init --build-local
+masterclaw create devclaw --image openclaw:local
 ```
 
 ## Instance Registry Format
@@ -166,15 +184,22 @@ npm i -g .
 masterclaw --help
 ```
 
-2. Verify `init`.
+2. Verify default `init`.
 
 ```bash
 masterclaw init
 test -d "$HOME/.masterclaw/openclaw"
+docker image inspect ghcr.io/openclaw/openclaw:latest >/dev/null
+```
+
+3. Verify contributor opt-in local build.
+
+```bash
+masterclaw init --build-local
 docker image inspect openclaw:local >/dev/null
 ```
 
-3. Verify `create`, `list`, `start`, `stop`, `token`, and `url`.
+4. Verify `create`, `list`, `start`, `stop`, `token`, and `url`.
 
 ```bash
 masterclaw create elbo
@@ -186,7 +211,7 @@ masterclaw url elbo
 masterclaw stop elbo
 ```
 
-4. Verify `logs` and `exec`.
+5. Verify `logs` and `exec`.
 
 ```bash
 masterclaw start elbo
@@ -195,14 +220,14 @@ masterclaw exec elbo channels login
 masterclaw stop elbo
 ```
 
-5. Verify `import`.
+6. Verify `import`.
 
 ```bash
 masterclaw import imported /path/to/backup.tar.gz
 masterclaw status imported
 ```
 
-6. Verify `remove` preserves config and workspace.
+7. Verify `remove` preserves config and workspace.
 
 ```bash
 masterclaw remove elbo
@@ -210,8 +235,15 @@ test ! -d "$HOME/.masterclaw/config/instances/elbo"
 test -d "$HOME/claws/elbo"
 ```
 
-7. Verify local update flow for `openclaw:local`.
+8. Verify released-image update flow.
 
 ```bash
 masterclaw update imported
+```
+
+9. Verify local-image update flow for contributors.
+
+```bash
+masterclaw create localdev --image openclaw:local
+masterclaw update localdev
 ```

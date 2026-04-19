@@ -1,6 +1,7 @@
 import { execa } from 'execa';
 import { getPaths } from './paths.js';
 import type { InstanceEnv } from './instance.js';
+import { ensureOpenclawSupportRepo } from './openclaw.js';
 
 type ExecaOptions = Parameters<typeof execa>[2];
 
@@ -50,6 +51,7 @@ export async function runDockerCompose(
   args: string[],
   options: ExecaOptions & { env?: Record<string, string> } = {},
 ) {
+  await ensureOpenclawSupportRepo();
   const env = { ...process.env, ...options.env };
   return execa('docker', composeArgs(name, args), { ...options, env });
 }

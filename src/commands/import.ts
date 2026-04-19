@@ -54,6 +54,7 @@ export async function runImport(
     config: configDir,
     workspace: workspaceDir,
     port: options.port,
+    image: options.image,
   });
 
   console.log('');
@@ -70,6 +71,7 @@ export function registerImportCommand(program: Command): void {
     .option('--config <dir>', 'Config directory')
     .option('--workspace <dir>', 'Workspace directory')
     .option('--port <port>', 'Gateway port')
+    .option('--image <image>', 'OpenClaw image')
     .action(async (name: string | undefined, backupFile: string | undefined, options: ImportCommandOptions) => {
       await runImport(name, backupFile, options);
     });

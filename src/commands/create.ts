@@ -16,6 +16,7 @@ export function registerCreateCommand(program: Command): void {
     .option('--config <dir>', 'Config directory')
     .option('--workspace <dir>', 'Workspace directory')
     .option('--port <port>', 'Gateway port')
+    .option('--image <image>', 'OpenClaw image')
     .action(async (name: string | undefined, options: AddCommandOptions) => {
       await runCreate(name, options);
     });

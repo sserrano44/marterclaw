@@ -2,11 +2,13 @@ import type { Command } from 'commander';
 import { execa } from 'execa';
 import { composeProjectName, setupEnv } from '../docker.js';
 import { loadInstance, requireName } from '../instance.js';
+import { ensureOpenclawSupportRepo } from '../openclaw.js';
 import { ensureInstancesRoot, getPaths } from '../paths.js';
 
 export async function runSetup(name: string | undefined): Promise<void> {
   const clawName = requireName(name);
   await ensureInstancesRoot();
+  await ensureOpenclawSupportRepo();
   const instance = await loadInstance(clawName);
   const paths = getPaths();
 

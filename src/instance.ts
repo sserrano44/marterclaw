@@ -10,6 +10,7 @@ import {
   getPaths,
   getOpenclawJsonPath,
 } from './paths.js';
+import { DEFAULT_OPENCLAW_IMAGE } from './openclaw.js';
 import { readEnvFile, writeEnvFile } from './util/envFile.js';
 import { readGatewayTokenFromOpenclawJson } from './util/openclawJson.js';
 
@@ -57,6 +58,7 @@ export interface AddInstanceOptions {
   configDir?: string;
   workspaceDir?: string;
   port?: string;
+  image?: string;
 }
 
 const EMPTY_INSTANCE: Omit<InstanceEnv, 'CLAW_NAME'> = {
@@ -65,7 +67,7 @@ const EMPTY_INSTANCE: Omit<InstanceEnv, 'CLAW_NAME'> = {
   OPENCLAW_GATEWAY_PORT: '',
   OPENCLAW_BRIDGE_PORT: '',
   OPENCLAW_GATEWAY_TOKEN: '',
-  OPENCLAW_IMAGE: 'openclaw:local',
+  OPENCLAW_IMAGE: DEFAULT_OPENCLAW_IMAGE,
   OPENCLAW_GATEWAY_BIND: 'lan',
   OPENCLAW_SANDBOX: '',
   OPENCLAW_TZ: '',
@@ -219,6 +221,7 @@ export async function registerInstance(name: string, options: AddInstanceOptions
     OPENCLAW_GATEWAY_PORT: String(gatewayPort),
     OPENCLAW_BRIDGE_PORT: String(bridgePort),
     OPENCLAW_GATEWAY_TOKEN: token,
+    OPENCLAW_IMAGE: options.image || EMPTY_INSTANCE.OPENCLAW_IMAGE,
   };
 
   await writeEnvFile(getInstanceEnvFile(clawName), instanceEnvEntries(instance));

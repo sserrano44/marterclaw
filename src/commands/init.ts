@@ -1,39 +1,47 @@
-import { stat } from 'node:fs/promises';
-import { execa } from 'execa';
 import type { Command } from 'commander';
-import { getPaths } from '../paths.js';
+import {
+  DEFAULT_OPENCLAW_IMAGE,
+  buildLocalOpenclawImage,
+  ensureOpenclawSupportRepo,
+  hasOpenclawSupportRepo,
+  pullReleasedOpenclawImage,
+} from '../openclaw.js';
 
-export async function runInit(): Promise<void> {
-  const paths = getPaths();
+export interface InitCommandOptions {
+  buildLocal?: boolean;
+}
 
-  try {
-    const stats = await stat(paths.openclawDir);
-    if (stats.isDirectory()) {
-      console.log(`openclaw already present at ${paths.openclawDir}`);
-    }
-  } catch {
-    console.log(`Cloning openclaw into ${paths.openclawDir}...`);
-    await execa('git', ['clone', 'git@github.com:openclaw/openclaw.git', paths.openclawDir], {
-      stdio: 'inherit',
-    });
+export async function runInit(options: InitCommandOptions): Promise<void> {
+  const alreadyPresent = await hasOpenclawSupportRepo();
+  await ensureOpenclawSupportRepo();
+  if (alreadyPresent) {
+    console.log('openclaw support files already present');
   }
 
-  console.log('Building Docker image (openclaw:local)...');
-  await execa('docker', ['build', '-t', 'openclaw:local', paths.openclawDir], {
-    env: { ...process.env, DOCKER_BUILDKIT: '1' },
-    stdio: 'inherit',
-  });
+  if (options.buildLocal) {
+    console.log('Building Docker image (openclaw:local)...');
+    await buildLocalOpenclawImage();
+
+    console.log('');
+    console.log('Done. openclaw local source image is ready. Next:');
+    console.log('  masterclaw create <name> --image openclaw:local');
+    return;
+  }
+
+  console.log(`Pulling released OpenClaw image (${DEFAULT_OPENCLAW_IMAGE})...`);
+  await pullReleasedOpenclawImage();
 
   console.log('');
-  console.log('Done. openclaw is ready. Next:');
-  console.log('  masterclaw create <name>    # create your first claw');
+  console.log('Done. released OpenClaw runtime is ready. Next:');
+  console.log('  masterclaw create <name>');
 }
 
 export function registerInitCommand(program: Command): void {
   program
     .command('init')
-    .description('Clone openclaw repo and build the Docker image')
-    .action(async () => {
-      await runInit();
+    .description('Prepare OpenClaw support files and the default runtime image')
+    .option('--build-local', 'Build openclaw:local from source instead of pulling the released image')
+    .action(async (options: InitCommandOptions) => {
+      await runInit(options);
     });
 }

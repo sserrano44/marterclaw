@@ -6,6 +6,7 @@ export interface AddCommandOptions {
   config?: string;
   workspace?: string;
   port?: string;
+  image?: string;
 }
 
 export async function runAdd(name: string | undefined, options: AddCommandOptions): Promise<void> {
@@ -16,6 +17,7 @@ export async function runAdd(name: string | undefined, options: AddCommandOption
     configDir: options.config || getDefaultConfigDir(clawName),
     workspaceDir: options.workspace || getDefaultWorkspaceDir(clawName),
     port: options.port,
+    image: options.image,
   });
 
   console.log(`Registered claw '${clawName}'`);
@@ -38,6 +40,7 @@ export function registerAddCommand(program: Command): void {
     .option('--config <dir>', 'Config directory')
     .option('--workspace <dir>', 'Workspace directory')
     .option('--port <port>', 'Gateway port')
+    .option('--image <image>', 'OpenClaw image')
     .action(async (name: string | undefined, options: AddCommandOptions) => {
       await runAdd(name, options);
     });
